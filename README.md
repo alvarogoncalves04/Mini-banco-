@@ -37,10 +37,17 @@ mini_banco/
 
 └── README.md
 📊 Reglas de Negocio Implementadas
+
 -Montos superiores a $10,000 USD
+
 -Transferencias internacionales a países de riesgo
+
 -Depósitos fraccionados (smurfing) entre $8,000 y $10,000
+
 -Más de 5 transacciones en el mismo día
+
 -Transacciones en horario de riesgo (2am - 5am)
+
 🔗 Demo
+
 https://alvarogoncalves04-mini-banco.streamlit.app
