@@ -36,6 +36,7 @@ mini_banco/
 ├── requirements.txt
 
 └── README.md
+
 📊 Reglas de Negocio Implementadas
 
 -Montos superiores a $10,000 USD
