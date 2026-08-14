@@ -1,13 +1,16 @@
 # 06_machine_learning.py
+# MODELO DE MACHINE LEARNING PARA DETECCIÓN DE FRAUDE
+
 import sqlite3
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.preprocessing import StandardScaler
 import joblib
+import warnings
+warnings.filterwarnings('ignore')
 
 def cargar_datos_olap():
     conn = sqlite3.connect('data/olap.db')
@@ -16,9 +19,6 @@ def cargar_datos_olap():
     return df
 
 def preparar_datos(df):
-    """Prepara los datos para el modelo"""
-    
-    # Seleccionar features para entrenamiento
     features = [
         'monto_usd',
         'hora',
@@ -28,21 +28,18 @@ def preparar_datos(df):
         'es_horario_riesgo'
     ]
     
-    # Variable objetivo (lo que queremos predecir)
     target = 'es_sospechoso'
     
     X = df[features].copy()
     y = df[target].copy()
     
-    # Escalar datos numéricos
+    # Escalar solo la columna numérica
     scaler = StandardScaler()
     X['monto_usd'] = scaler.fit_transform(X[['monto_usd']])
     
     return X, y, scaler
 
-def entrenar_modelos(X, y):
-    """Entrena y compara 2 modelos"""
-    
+def entrenar_modelo(X, y):
     # Dividir en entrenamiento (80%) y prueba (20%)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
@@ -53,21 +50,11 @@ def entrenar_modelos(X, y):
     print(f"📊 Sospechosos en entrenamiento: {y_train.sum()}")
     print(f"📊 Sospechosos en prueba: {y_test.sum()}")
     
-    # Modelo 1: Regresión Logística
+    # ============================================
+    # RANDOM FOREST (Único modelo)
+    # ============================================
     print("\n" + "="*50)
-    print("🔍 REGRESIÓN LOGÍSTICA")
-    print("="*50)
-    
-    lr = LogisticRegression(random_state=42, max_iter=1000)
-    lr.fit(X_train, y_train)
-    y_pred_lr = lr.predict(X_test)
-    
-    print(f"Accuracy: {accuracy_score(y_test, y_pred_lr):.2%}")
-    print(classification_report(y_test, y_pred_lr, target_names=['Normal', 'Sospechoso']))
-    
-    # Modelo 2: Random Forest
-    print("\n" + "="*50)
-    print("🌲 RANDOM FOREST")
+    print("🌲 RANDOM FOREST - DETECCIÓN DE FRAUDE")
     print("="*50)
     
     rf = RandomForestClassifier(
@@ -79,15 +66,19 @@ def entrenar_modelos(X, y):
     rf.fit(X_train, y_train)
     y_pred_rf = rf.predict(X_test)
     
-    print(f"Accuracy: {accuracy_score(y_test, y_pred_rf):.2%}")
+    print(f"✅ Accuracy: {accuracy_score(y_test, y_pred_rf):.2%}")
+    print("\n📊 Reporte de Clasificación:")
     print(classification_report(y_test, y_pred_rf, target_names=['Normal', 'Sospechoso']))
     
-    # Importancia de features
-    print("\n📌 IMPORTANCIA DE VARIABLES (Random Forest):")
+    print("\n📊 Matriz de Confusión:")
+    print(confusion_matrix(y_test, y_pred_rf))
+    
+    # Importancia de variables
+    print("\n📌 IMPORTANCIA DE VARIABLES:")
     for feature, importance in zip(X.columns, rf.feature_importances_):
         print(f"  - {feature}: {importance:.2%}")
     
-    # Guardar el mejor modelo
+    # Guardar modelo
     joblib.dump(rf, 'modelo_rf.pkl')
     joblib.dump(scaler, 'scaler.pkl')
     print("\n✅ Modelo guardado: modelo_rf.pkl")
@@ -100,7 +91,6 @@ def predecir_nueva_transaccion(monto_usd, hora, es_pais_riesgo, excede_velocidad
     modelo = joblib.load('modelo_rf.pkl')
     scaler = joblib.load('scaler.pkl')
     
-    # Crear array con los datos
     datos = np.array([[
         monto_usd,
         hora,
@@ -110,10 +100,8 @@ def predecir_nueva_transaccion(monto_usd, hora, es_pais_riesgo, excede_velocidad
         es_horario_riesgo
     ]])
     
-    # Escalar monto
     datos[0, 0] = scaler.transform([[monto_usd]])[0, 0]
     
-    # Predecir
     prediccion = modelo.predict(datos)[0]
     probabilidad = modelo.predict_proba(datos)[0][1]
     
@@ -124,17 +112,15 @@ if __name__ == "__main__":
     print("🤖 MACHINE LEARNING - DETECCIÓN DE FRAUDE")
     print("="*60)
     
-    # Cargar datos
     df = cargar_datos_olap()
     print(f"📊 Datos cargados: {len(df)} registros")
+    print(f"📊 Sospechosos: {df['es_sospechoso'].sum()}")
+    print(f"📊 Normales: {len(df) - df['es_sospechoso'].sum()}")
     
-    # Preparar
     X, y, scaler = preparar_datos(df)
+    modelo, scaler = entrenar_modelo(X, y)
     
-    # Entrenar
-    modelo, scaler = entrenar_modelos(X, y)
-    
-    # Prueba con una transacción nueva
+    # Prueba
     print("\n" + "="*50)
     print("🧪 PRUEBA CON NUEVA TRANSACCIÓN")
     print("="*50)

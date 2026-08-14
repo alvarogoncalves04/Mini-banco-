@@ -1,43 +1,60 @@
 # 01_generar_datos.py
-# SIMULA EL SISTEMA OLTP DEL BANCO (donde se registran las transacciones diarias)
+# SIMULA EL SISTEMA OLTP DEL BANCO
 
 import sqlite3
 import pandas as pd
 from faker import Faker
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# Configuración
-fake = Faker('es_ES')  # Datos en español
-NUM_TRANSACCIONES = 10000  # Solo 10,000 registros (MUY LIGERO)
+# ============================================
+# CONFIGURACIÓN
+# ============================================
+fake = Faker('es_ES')
+NUM_TRANSACCIONES = 50000
 
-# Listas de países y tipos de transacción
 PAISES = ['Venezuela', 'Colombia', 'Panamá', 'México', 'España', 'EE.UU', 'Islas Caimán', 'Suiza']
 TIPOS = ['Depósito', 'Retiro', 'Transferencia']
 
+# ============================================
+# FUNCIONES
+# ============================================
 def generar_transacciones(n):
-    """Genera n transacciones falsas"""
+    """
+    Genera n transacciones falsas.
+    El 60% de los casos serán de alto riesgo (montos altos, países de riesgo).
+    """
     transacciones = []
     
     for i in range(n):
-        # Generar un cliente con nombre falso
         cliente = fake.name()
-        
-        # Fecha aleatoria en los últimos 30 días
         fecha = fake.date_between(start_date='-30d', end_date='today')
         
-        # Monto aleatorio (entre 10 y 50,000)
-        monto = round(random.uniform(10, 50000), 2)
+        # 60% de probabilidad de ser sospechoso
+        es_riesgo = random.random() < 0.60
         
-        # Tipo de transacción
-        tipo = random.choice(TIPOS)
-        
-        # País (con más peso a Venezuela)
-        pais = random.choices(
-            PAISES, 
-            weights=[50, 10, 10, 10, 10, 5, 3, 2],  # Venezuela aparece más
-            k=1
-        )[0]
+        if es_riesgo:
+            # Caso SOSPECHOSO: montos altos, países de riesgo
+            monto = round(random.uniform(15000, 100000), 2)
+            pais = random.choices(
+                PAISES, 
+                weights=[15, 10, 30, 5, 5, 5, 20, 10],
+                k=1
+            )[0]
+            tipo = random.choices(
+                TIPOS,
+                weights=[20, 10, 70],
+                k=1
+            )[0]
+        else:
+            # Caso NORMAL: montos bajos, países seguros
+            monto = round(random.uniform(10, 2000), 2)
+            pais = random.choices(
+                PAISES, 
+                weights=[70, 10, 3, 10, 5, 2, 0, 0],
+                k=1
+            )[0]
+            tipo = random.choice(['Depósito', 'Retiro'])
         
         transacciones.append({
             'id': i + 1,
@@ -52,9 +69,11 @@ def generar_transacciones(n):
 
 def guardar_en_oltp(df):
     """Guarda los datos en la base de datos OLTP"""
+    import os
+    os.makedirs('data', exist_ok=True)
+    
     conn = sqlite3.connect('data/oltp.db')
     
-    # Crear tabla si no existe
     conn.execute('''
     CREATE TABLE IF NOT EXISTS transacciones_oltp (
         id INTEGER PRIMARY KEY,
@@ -66,23 +85,23 @@ def guardar_en_oltp(df):
     )
     ''')
     
-    # Guardar DataFrame en la tabla
     df.to_sql('transacciones_oltp', conn, if_exists='replace', index=False)
-    
     conn.close()
+    
     print(f"✅ {len(df)} transacciones guardadas en OLTP (data/oltp.db)")
 
+# ============================================
+# EJECUCIÓN
+# ============================================
 if __name__ == "__main__":
     print("🚀 Generando datos transaccionales (OLTP)...")
+    print(f"📊 Generando {NUM_TRANSACCIONES} transacciones...")
     
-    # Generar datos
     df = generar_transacciones(NUM_TRANSACCIONES)
     
-    # Mostrar primeras 5 filas
     print("\n📋 Ejemplo de datos generados:")
     print(df.head())
     
-    # Guardar en OLTP
     guardar_en_oltp(df)
     
     print("\n🔍 Resumen de datos:")
@@ -90,3 +109,4 @@ if __name__ == "__main__":
     print(f"Tipos: {df['tipo'].unique()}")
     print(f"Países: {df['pais'].unique()}")
     print(f"Rango de montos: ${df['monto'].min():,.2f} - ${df['monto'].max():,.2f}")
+    print(f"Monto promedio: ${df['monto'].mean():,.2f}")
