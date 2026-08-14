@@ -16,3 +16,14 @@ Proyecto que simula un sistema de monitoreo bancario para la detección de trans
 - Matplotlib (visualizaciones)
 
 ## 📁 Estructura del Proyecto
+mini_banco/
+├── data/
+│ ├── oltp.db # Base de datos transaccional
+│ └── olap.db # Data Warehouse
+├── src/
+│ ├── 01_generar_datos.py # Genera datos falsos
+│ ├── 02_etl_pipeline.py # Pipeline ETL
+│ ├── 03_consultas_olap.py # Consultas analíticas
+│ └── 04_dashboard.py # Dashboard Streamlit
+├── requirements.txt
+└── README.md
